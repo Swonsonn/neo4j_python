@@ -48,9 +48,12 @@ class Graph:
 
 
 class Neo4jWorkspace:
-    def __init__(self, uri, user, password):
+    DatabaseName = ""
+
+    def __init__(self, uri, user, password, name):
         print("INFO: Setting URL for connection to BD . . .")
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
+        self.DatabaseName = name
 
     def close(self):
         self.driver.close()
@@ -62,7 +65,7 @@ class Neo4jWorkspace:
         return [r["labels"] for r in results]
 
     def returnLabel(self, node):
-        with self.driver.session(database="busstations") as session:
+        with self.driver.session(database=self.DatabaseName) as session:
             label = session.read_transaction(self._getLabel, node)
             return label
 
@@ -73,7 +76,7 @@ class Neo4jWorkspace:
         return [r["length"] for r in results]
 
     def findRelation(self, start, end):
-        with self.driver.session(database="busstations") as session:
+        with self.driver.session(database=self.DatabaseName) as session:
             length = session.read_transaction(self._getLength, start, end)
             return length
 
@@ -84,17 +87,21 @@ class Neo4jWorkspace:
 
     def findAllNodes(self):
         print("INFO: Reading all nodes . . .")
-        with self.driver.session(database="busstations") as session:
+        with self.driver.session(database=self.DatabaseName) as session:
             all_nodes = session.read_transaction(self._getAllNodes)
-            print("INFO: All nodes have been read")
+            print("INFO: "+str(len(all_nodes))+" nodes have been read")
             return all_nodes
 
 
 if __name__ == "__main__":
-    bd = Neo4jWorkspace("bolt://localhost:7687", "neo4j", "1234")
+    BDname = str(input("Enter database name: "))
+    BDpassword = str(input("Enter database password: "))
+    bd = Neo4jWorkspace("bolt://localhost:7687", "neo4j", BDpassword, BDname)
     nodes = bd.findAllNodes()
     G = Graph()
+    print("Here's all nodes: ", end=" ")
     for A in nodes:
+        print(A+"; ", end=" ")
         for B in nodes:
             if A != B:
                 possible_length = bd.findRelation(A, B)
@@ -104,8 +111,12 @@ if __name__ == "__main__":
                         L *= 3
                     G.add_edge(str(A), str(B), int(L))
     bd.close()
+    print()
 
-    route = dijsktra(G, "University", "Shopping mall")
+    pathStart = str(input("Input start point: "))
+    pathEnd = str(input("Input end point: "))
+
+    route = dijsktra(G, pathStart, pathEnd)
 
     t1 = ""
     t2 = ""
